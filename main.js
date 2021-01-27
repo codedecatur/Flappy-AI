@@ -10,6 +10,9 @@ var s = c.height;
 var tofu = new Image();
 tofu.src = "Tofu.png";
 
+var bestBirdOfLastGen;
+
+//canvas context
 var ctx = c.getContext("2d");
 
 var gravity = 0.0005;
@@ -17,13 +20,16 @@ var gravity = 0.0005;
 var birds = [];
 var pipes = [];
 
+var genNum = 0;
+var highestCurrentScore = 0;
+
 var distToNextPipe = 0;
 var closestHeight = 0;
 
 function bird(neuron){
     birds.push(this);
     if(!neuron){
-        this.brain = new Neuron();
+        this.brain = new Net();
     } else {
         this.brain = neuron;
     }
@@ -38,7 +44,7 @@ function bird(neuron){
         this.height += this.velocity;
 
         //flap
-        if(this.brain.guess([this.height, closestHeight])){
+        if(this.brain.guess([this.height, closestHeight, distToNextPipe, 0.005 * (1+(highestCurrentScore / 5000)), this.velocity])){
             this.velocity = -0.01;
         }
 
@@ -84,7 +90,7 @@ function pipe(){
     this.height = Math.random() * 0.85 + 0.075;
     this.gapHeight = 0.075; 
     this.update = function(){
-        this.x -= 0.005;
+        this.x -= 0.005 * (1+(highestCurrentScore / 5000));
         //when a pipe goes off the left, give living birds a point and kill the pipe
         if(this.x < -this.width){
             pipes.splice(pipes.indexOf(this), 1);
@@ -109,7 +115,22 @@ function birdsAlive(){
 }
 
 function update(){
+
+    highestCurrentScore++;
+
+    //next generation, when all birds die
     if(birdsAlive() == 0){
+        //find the best bird
+        var highestScore = 0;
+        for(let i of birds){
+            if(i.score >= highestScore) { 
+                bestBirdOfLastGen = i;
+                highestScore = i.score;
+            }
+        }
+        
+        highestCurrentScore = 0;
+        genNum++;
         birds.sort((a, b) => {b.score - a.score});
         var parents = [];
         for(var i = 0; i < 10; i++){
@@ -141,6 +162,19 @@ function update(){
     drawBirds();
     updatePipes();
     drawPipes();
+    drawStats();
+}
+
+function drawStats(){
+    var fontSize = s/40;
+
+    ctx.fillStyle = "black";
+    ctx.font = `${fontSize}px sans-serif`;
+    ctx.fillText("Generation: " + genNum ,0.05 * s, 0.05 * s);
+    ctx.fillText("Distance: " + highestCurrentScore ,0.05 * s, 0.05 * s + fontSize + 0.05 * s);
+    if(bestBirdOfLastGen){
+        ctx.fillText("Best Name: " + bestBirdOfLastGen.brain.name ,0.05 * s, 0.05 * s + 2*(fontSize + 0.05 * s));
+    }
 }
 
 function updateBirds(){
@@ -164,6 +198,10 @@ function drawPipes(){
     for(let i of pipes){
         i.draw();
     }
+}
+
+function drawNet(){
+
 }
 
 setInterval(update, 1000/60);
